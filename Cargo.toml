@@ -14,4 +14,4 @@ name = "morseclock-cli"
 path = "bin/cli.rs"
 
 [dependencies]
-chrono = "*"
+chrono = "0.4"

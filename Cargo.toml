@@ -4,8 +4,10 @@ version = "0.1.0"
 authors = ["Maik Allgöwer <maik@llgoewer.de>"]
 edition = "2021"
 license = "MIT"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+description = "Yet another not-so-intuitive clock"
+repository = "https://github.com/allgoewer/morseclock"
+readme = "README.md"
+documentation = "https://docs.rs/morseclock"
 
 [[bin]]
 name = "morseclock-cli"

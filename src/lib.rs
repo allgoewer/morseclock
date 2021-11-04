@@ -54,28 +54,59 @@ use std::fmt;
 use std::iter;
 use std::marker::PhantomData;
 
-/// All minutes are rounded to 5 minutes
-pub const MINUTE_GRANULARITY: u8 = 5;
-
 /// A collection of errors which can happen
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Error {
-    /// The given hour is invalid (>= 24)
-    InvalidHour,
-    /// The given minute is invalid (>= 60)
-    InvalidMinute,
+    /// The given value is invalid for a hand
+    InvalidHandValue,
 }
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::InvalidHour => f.write_str("Invalid hour"),
-            Self::InvalidMinute => f.write_str("Invalid minute"),
+            Self::InvalidHandValue => f.write_str("Invalid hand value"),
         }
     }
 }
 
 impl error::Error for Error {}
+
+/// A trait describing the properties of a clock hand
+pub trait ClockHand {
+    /// The granularity of the given hand
+    const GRANULARITY: u8;
+    /// The maximum value of the given hand
+    const MAX: u8;
+
+    /// Converts a hand value into a number of long and short symbols
+    fn to_long_short(value: u8) -> (u8, u8);
+}
+
+/// Hour marker struct for [`Hand`]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct Hour;
+
+impl ClockHand for Hour {
+    const GRANULARITY: u8 = 1;
+    const MAX: u8 = 24;
+
+    fn to_long_short(value: u8) -> (u8, u8) {
+        (value / 3 + 1, value % 3)
+    }
+}
+
+/// Minute marker struct for [`Hand`]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct Minute;
+
+impl ClockHand for Minute {
+    const GRANULARITY: u8 = 5;
+    const MAX: u8 = 60;
+
+    fn to_long_short(value: u8) -> (u8, u8) {
+        (value / 15 + 1, value % 15 / Self::GRANULARITY)
+    }
+}
 
 /// A clock hand
 /// 
@@ -92,55 +123,43 @@ impl error::Error for Error {}
 #[derive(Clone, Copy, Debug, Hash)]
 pub struct Hand<T> {
     value: u8,
-    _phantom: PhantomData<T>,
+    _marker: PhantomData<T>,
 }
 
-impl PartialEq for Hand<Hour> {
+impl<H: ClockHand> PartialEq for Hand<H> {
     fn eq(&self, other: &Self) -> bool {
-        self.value == other.value
+        self.value / H::GRANULARITY == other.value / H::GRANULARITY
     }
 }
 
-impl Eq for Hand<Hour> {}
+impl<H: ClockHand> Eq for Hand<H> {}
 
-impl PartialEq for Hand<Minute> {
-    fn eq(&self, other: &Self) -> bool {
-        self.value / MINUTE_GRANULARITY == other.value / MINUTE_GRANULARITY
-    }
-}
+impl<H: ClockHand> TryFrom<u32> for Hand<H> {
+    type Error = Error;
 
-impl Eq for Hand<Minute> {}
-
-impl IntoIterator for Hand<Hour> {
-    type Item = Symbol;
-    type IntoIter = HandIter<Hour>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        let hour = self.value as u8;
-        let long = hour / 3 + 1;
-        let short = hour % 3;
-
-        HandIter {
-            long,
-            short,
-            _phantom: PhantomData,
+    fn try_from(value: u32) -> Result<Self, Self::Error> {
+        if value >= H::MAX as u32 {
+            return Err(Error::InvalidHandValue);
         }
+
+        Ok(Hand {
+            value: value as u8,
+            _marker: PhantomData,
+        })
     }
 }
 
-impl IntoIterator for Hand<Minute> {
+impl<H: ClockHand> IntoIterator for Hand<H> {
     type Item = Symbol;
-    type IntoIter = HandIter<Minute>;
+    type IntoIter = HandIter<H>;
 
     fn into_iter(self) -> Self::IntoIter {
-        let minute = self.value as u8;
-        let long = minute / 15 + 1;
-        let short = minute % 15 / MINUTE_GRANULARITY;
+        let (long, short) = H::to_long_short(self.value);
 
         HandIter {
             long,
             short,
-            _phantom: PhantomData,
+            _marker: PhantomData,
         }
     }
 }
@@ -149,7 +168,7 @@ impl IntoIterator for Hand<Minute> {
 pub struct HandIter<T> {
     long: u8,
     short: u8,
-    _phantom: PhantomData<T>,
+    _marker: PhantomData<T>,
 }
 
 impl<T> Iterator for HandIter<T> {
@@ -165,44 +184,6 @@ impl<T> Iterator for HandIter<T> {
         } else {
             None
         }
-    }
-}
-
-/// Hour marker struct for [`Hand`]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct Hour;
-
-impl TryFrom<u32> for Hand<Hour> {
-    type Error = Error;
-
-    fn try_from(hour: u32) -> Result<Self, Self::Error> {
-        if hour >= 24 {
-            return Err(Error::InvalidHour);
-        }
-
-        Ok(Hand {
-            value: hour as u8,
-            _phantom: PhantomData,
-        })
-    }
-}
-
-/// Minute marker struct for [`Hand`]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct Minute;
-
-impl TryFrom<u32> for Hand<Minute> {
-    type Error = Error;
-
-    fn try_from(minute: u32) -> Result<Self, Self::Error> {
-        if minute >= 60 {
-            return Err(Error::InvalidMinute);
-        }
-
-        Ok(Hand {
-            value: minute as u8,
-            _phantom: PhantomData,
-        })
     }
 }
 

@@ -52,6 +52,7 @@
 use std::error;
 use std::fmt;
 use std::iter;
+use std::marker::PhantomData;
 
 /// All minutes are rounded to 5 minutes
 pub const MINUTE_GRANULARITY: u8 = 5;
@@ -91,7 +92,7 @@ impl error::Error for Error {}
 #[derive(Clone, Copy, Debug, Hash)]
 pub struct Hand<T> {
     value: u8,
-    _marker: T,
+    _phantom: PhantomData<T>,
 }
 
 impl PartialEq for Hand<Hour> {
@@ -122,7 +123,7 @@ impl IntoIterator for Hand<Hour> {
         HandIter {
             long,
             short,
-            _marker: Hour,
+            _phantom: PhantomData,
         }
     }
 }
@@ -139,7 +140,7 @@ impl IntoIterator for Hand<Minute> {
         HandIter {
             long,
             short,
-            _marker: Minute,
+            _phantom: PhantomData,
         }
     }
 }
@@ -148,7 +149,7 @@ impl IntoIterator for Hand<Minute> {
 pub struct HandIter<T> {
     long: u8,
     short: u8,
-    _marker: T,
+    _phantom: PhantomData<T>,
 }
 
 impl<T> Iterator for HandIter<T> {
@@ -181,7 +182,7 @@ impl TryFrom<u32> for Hand<Hour> {
 
         Ok(Hand {
             value: hour as u8,
-            _marker: Hour,
+            _phantom: PhantomData,
         })
     }
 }
@@ -200,7 +201,7 @@ impl TryFrom<u32> for Hand<Minute> {
 
         Ok(Hand {
             value: minute as u8,
-            _marker: Minute,
+            _phantom: PhantomData,
         })
     }
 }

@@ -187,10 +187,14 @@ impl<T> Iterator for HandIter<T> {
     }
 }
 
+/// The symbols used to describe a time
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Symbol {
+    /// The break symbol (used to distinguish between hour and minute)
     Break,
+    /// The short symbol
     Short,
+    /// Thoe long symbol
     Long,
 }
 

@@ -121,9 +121,9 @@ impl ClockHand for Minute {
 /// let minute = Hand::<Minute>::try_from(59);
 /// ```
 #[derive(Clone, Copy, Debug, Hash)]
-pub struct Hand<T> {
+pub struct Hand<H> {
     value: u8,
-    _marker: PhantomData<T>,
+    _marker: PhantomData<H>,
 }
 
 impl<H: ClockHand> PartialEq for Hand<H> {
@@ -165,13 +165,13 @@ impl<H: ClockHand> IntoIterator for Hand<H> {
 }
 
 /// An iterator over a [`Hand`] which produces a series of [`Symbol`]s
-pub struct HandIter<T> {
+pub struct HandIter<H> {
     long: u8,
     short: u8,
-    _marker: PhantomData<T>,
+    _marker: PhantomData<H>,
 }
 
-impl<T> Iterator for HandIter<T> {
+impl<H> Iterator for HandIter<H> {
     type Item = Symbol;
 
     fn next(&mut self) -> Option<Self::Item> {

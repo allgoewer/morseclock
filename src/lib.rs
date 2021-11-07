@@ -120,7 +120,7 @@ impl ClockHand for Minute {
 /// let hour = Hand::<Hour>::try_from(23);
 /// let minute = Hand::<Minute>::try_from(59);
 /// ```
-#[derive(Clone, Copy, Debug, Hash)]
+#[derive(Clone, Copy, Debug)]
 pub struct Hand<H> {
     value: u8,
     _marker: PhantomData<H>,
@@ -206,7 +206,7 @@ pub enum Format {
 }
 
 /// A Clock which can produce a morse-like sequence of dits and dashes
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Clock {
     pub hour: Hand<Hour>,
     pub minute: Hand<Minute>,

@@ -1,7 +1,8 @@
 use chrono::{offset::Local, Timelike};
 use morseclock::{Clock, Format, Symbol};
-use std::env;
+use std::convert::Infallible;
 use std::fs;
+use std::ffi;
 use std::io::{self, Seek, Write};
 use std::path;
 use std::thread;
@@ -60,6 +61,7 @@ pub mod parser {
 #[derive(Debug)]
 struct SysfsLed {
     max_brightness: u32,
+    old_brightness: u32,
     trigger: Option<String>,
     brightness_file: fs::File,
     trigger_file: fs::File,
@@ -78,10 +80,12 @@ impl SysfsLed {
             .collect();
 
         let trigger = fs::read_to_string(&trigger_path)?;
-        let brightness = fs::read_to_string(&max_brightness_path)?;
+        let max_brightness = fs::read_to_string(&max_brightness_path)?;
+        let old_brightness = fs::read_to_string(&brightness_path)?;
 
         Ok(SysfsLed {
-            max_brightness: brightness.trim().parse()?,
+            max_brightness: max_brightness.trim().parse()?,
+            old_brightness: old_brightness.trim().parse()?,
             trigger: parser::parse_trigger(&trigger).map(|t| t.to_owned()),
             brightness_file: fs::OpenOptions::new()
                 .read(true)
@@ -122,14 +126,45 @@ impl SysfsLed {
 
 impl Drop for SysfsLed {
     fn drop(&mut self) {
-        self.set(0).unwrap();
+        self.set(self.old_brightness).unwrap();
         self.reset_trigger().unwrap();
     }
 }
 
+#[derive(Debug)]
+pub struct Args {
+    pub base_duration: u64,
+    pub break_duration: u64,
+    pub short_on_duration: u64,
+    pub short_off_duration: u64,
+    pub long_on_duration:  u64,
+    pub long_off_duration: u64,
+    pub path: ffi::OsString,
+}
+
+fn args() -> anyhow::Result<Args> {
+    let mut args = pico_args::Arguments::from_env();
+
+    let break_duration: u64 = args.value_from_str(["-p", "--pause-duration"])?;
+    let base_duration: u64 = args.value_from_str(["-b", "--base-duration"])?;
+    let long_duty = args.value_from_str::<_, f64>(["-l", "--long-duty"])?.clamp(0.001, 1.0);
+    let short_duty = args.value_from_str::<_, f64>(["-s", "--short-duty"])?.clamp(0.001, 1.0);
+
+    Ok(Args {
+        base_duration,
+        break_duration,
+        short_on_duration: (base_duration as f64 * short_duty) as u64,
+        short_off_duration: (base_duration as f64 * (1.0 - short_duty)) as u64,
+        long_on_duration: (base_duration as f64 * long_duty) as u64,
+        long_off_duration: (base_duration as f64 * (1.0 - long_duty)) as u64,
+        path: args.free_from_os_str::<_, Infallible>(|f| Ok(f.to_owned()))?,
+    })
+}
+
 fn app() -> anyhow::Result<()> {
-    let path = "/sys/class/leds/thingm0:blue:led0/";
-    let mut led = SysfsLed::new(path)?;
+    let args = dbg!(args()?);
+
+    let mut led = SysfsLed::new(&args.path)?;
 
     let running = sync::Arc::new(atomic::AtomicBool::new(true));
 
@@ -149,15 +184,19 @@ fn app() -> anyhow::Result<()> {
         let clock = Clock::new(hour, minute, Format::Hour12);
 
         for sym in clock {
+            if !running.load(atomic::Ordering::Relaxed) {
+                break 'outer;
+            }
+
             match sym {
                 Symbol::Break => {
-                    thread::sleep(Duration::from_millis(1000));
+                    thread::sleep(Duration::from_millis(args.base_duration));
                 }
                 Symbol::Short => {
-                    led.blink(Duration::from_millis(100), Duration::from_millis(900))?;
+                    led.blink(Duration::from_millis(args.short_on_duration), Duration::from_millis(args.short_off_duration))?;
                 }
                 Symbol::Long => {
-                    led.blink(Duration::from_millis(500), Duration::from_millis(500))?;
+                    led.blink(Duration::from_millis(args.long_on_duration), Duration::from_millis(args.long_off_duration))?;
                 }
             }
         }
@@ -176,7 +215,7 @@ fn app() -> anyhow::Result<()> {
 
 fn main() {
     if let Err(e) = app() {
-        eprintln!("{}", e);
+        eprintln!("Error: {}", e);
         std::process::exit(1);
     }
 }

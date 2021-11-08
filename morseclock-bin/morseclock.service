@@ -1,0 +1,17 @@
+[Unit]
+Description=Clean up modules from old kernels
+
+[Service]
+Type=simple
+EnvironmentFile = /etc/morseclock.env
+ExecStart=/opt/morseclock/morseclock-hw \
+		-p ${PAUSE_MS} \
+		-b ${BASE_MS} -l ${LONG_DUTY} -s ${SHORT_DUTY} \
+		-u nobody \
+		/sys/class/leds/${LED}
+RestartSec = 10s
+Restart = always
+
+[Install]
+WantedBy=basic.target
+

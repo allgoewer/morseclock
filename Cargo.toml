@@ -1,17 +1,5 @@
-[package]
-name = "morseclock"
-version = "0.1.0"
-authors = ["Maik Allgöwer <maik@llgoewer.de>"]
-edition = "2021"
-license = "MIT"
-description = "Yet another not-so-intuitive clock"
-repository = "https://github.com/allgoewer/morseclock"
-readme = "README.md"
-documentation = "https://docs.rs/morseclock"
-
-[[bin]]
-name = "morseclock-cli"
-path = "bin/cli.rs"
-
-[dependencies]
-chrono = "0.4"
+[workspace]
+members = [
+    "morseclock-lib",
+    "morseclock-bin"
+]

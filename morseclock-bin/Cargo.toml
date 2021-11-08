@@ -1,0 +1,25 @@
+[package]
+name = "morseclock-bin"
+version = "0.1.0"
+authors = ["Maik Allgöwer <maik@llgoewer.de>"]
+edition = "2021"
+license = "GPL-3.0"
+description = "Yet another not-so-intuitive LED clock"
+repository = "https://github.com/allgoewer/morseclock"
+
+[[bin]]
+name = "morseclock-hw"
+path = "src/bin/hwclock.rs"
+
+[[bin]]
+name = "morseclock-cli"
+path = "src/bin/cli.rs"
+
+[dependencies]
+chrono = "0.4.19"
+nom = "7.1.0"
+ctrlc = { version = "3.2.1", features = ["termination"] }
+anyhow = "1.0.45"
+pico-args = "0.4.2"
+privdrop = "0.5.1"
+morseclock = { path = "../morseclock-lib" }

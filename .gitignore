@@ -1,1 +1,4 @@
 /target
+*/target
+Cargo.lock
+morseclock-lib/Cargo.lock

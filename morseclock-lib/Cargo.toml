@@ -1,0 +1,10 @@
+[package]
+name = "morseclock"
+version = "0.1.0"
+authors = ["Maik Allgöwer <maik@llgoewer.de>"]
+edition = "2021"
+license = "MIT"
+description = "Yet another not-so-intuitive clock"
+repository = "https://github.com/allgoewer/morseclock"
+readme = "README.md"
+documentation = "https://docs.rs/morseclock"

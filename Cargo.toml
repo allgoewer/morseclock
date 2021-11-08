@@ -1,26 +1,5 @@
-[package]
-name = "morseclock"
-version = "0.1.0"
-authors = ["Maik Allgöwer <maik@llgoewer.de>"]
-edition = "2021"
-license = "MIT"
-description = "Yet another not-so-intuitive clock"
-repository = "https://github.com/allgoewer/morseclock"
-readme = "README.md"
-documentation = "https://docs.rs/morseclock"
-
-[[bin]]
-name = "morseclock-cli"
-path = "src/bin/cli.rs"
-
-[[bin]]
-name = "morseclock-hw"
-path = "src/bin/hwclock.rs"
-
-[dependencies]
-chrono = "0.4.19"
-nom = "7.1.0"
-ctrlc = { version = "3.2.1", features = ["termination"] }
-anyhow = "1.0.45"
-pico-args = "0.4.2"
-privdrop = "0.5.1"
+[workspace]
+members = [
+    "morseclock-lib",
+    "morseclock-bin"
+]

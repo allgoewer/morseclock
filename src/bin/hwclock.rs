@@ -166,6 +166,11 @@ fn app() -> anyhow::Result<()> {
 
     let mut led = SysfsLed::new(&args.path)?;
 
+    // drop to an unprivileged user
+    if let Some(user) = args.user {
+        privdrop::PrivDrop::default().user(user).apply()?;
+    }
+
     let running = sync::Arc::new(atomic::AtomicBool::new(true));
 
     ctrlc::set_handler({

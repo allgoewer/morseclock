@@ -59,6 +59,29 @@ pub mod parser {
 }
 
 #[derive(Debug)]
+enum Error {
+    InvalidDutyCycle,
+    ParseError(std::num::ParseFloatError),
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::InvalidDutyCycle => f.write_str("Invalid duty cycle"),
+            Self::ParseError(e) => write!(f, "Parsing failed: {}", e),
+        }
+    }
+}
+
+impl error::Error for Error {}
+
+impl From<std::num::ParseFloatError> for Error {
+    fn from(error: std::num::ParseFloatError) -> Self {
+        Self::ParseError(error)
+    }
+}
+
+#[derive(Debug)]
 struct SysfsLed {
     max_brightness: u32,
     old_brightness: u32,
@@ -83,6 +106,13 @@ impl SysfsLed {
         let max_brightness = fs::read_to_string(&max_brightness_path)?;
         let old_brightness = fs::read_to_string(&brightness_path)?;
 
+        let mut trigger_file = fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(trigger_path)?;
+
+        Self::write_trigger(&mut trigger_file, "none")?;
+
         Ok(SysfsLed {
             max_brightness: max_brightness.trim().parse()?,
             old_brightness: old_brightness.trim().parse()?,
@@ -91,10 +121,7 @@ impl SysfsLed {
                 .read(true)
                 .write(true)
                 .open(brightness_path)?,
-            trigger_file: fs::OpenOptions::new()
-                .read(true)
-                .write(true)
-                .open(trigger_path)?,
+            trigger_file,
         })
     }
 
@@ -114,13 +141,19 @@ impl SysfsLed {
         Ok(())
     }
 
-    fn reset_trigger(&mut self) -> anyhow::Result<()> {
-        if let Some(trigger) = &self.trigger {
-            self.trigger_file.seek(io::SeekFrom::Start(0))?;
-            self.trigger_file.write_all(trigger.as_bytes())?;
-        }
+    fn write_trigger(file: &mut fs::File, trigger: &str) -> anyhow::Result<()> {
+        file.seek(io::SeekFrom::Start(0))?;
+        file.write_all(trigger.as_bytes())?;
 
         Ok(())
+    }
+
+    fn reset_trigger(&mut self) -> anyhow::Result<()> {
+        if let Some(trigger) = &self.trigger {
+            Self::write_trigger(&mut self.trigger_file, trigger)
+        } else {
+            Ok(())
+        }
     }
 }
 
@@ -131,38 +164,91 @@ impl Drop for SysfsLed {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
+struct DutyCycle(f64);
+
+impl str::FromStr for DutyCycle {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let value: f64 = s.parse()?;
+
+        if value <= 0.0 || value > 1.0 {
+            Err(Error::InvalidDutyCycle)
+        } else {
+            Ok(DutyCycle(value))
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct Args {
     pub base_duration: u64,
     pub break_duration: u64,
     pub short_on_duration: u64,
     pub short_off_duration: u64,
-    pub long_on_duration:  u64,
+    pub long_on_duration: u64,
     pub long_off_duration: u64,
-    pub path: ffi::OsString,
+    pub user: Option<OsString>,
+    pub path: OsString,
+}
+
+fn help() {
+    println!(
+        r#"
+morseclock-hw - Yet another not-so-useful LED clock
+
+Usage: morseclock-hw [PARAMS] [OPTIONS] LED_SYSFS_DIR
+
+Parameters:
+    -p, --pause-duration    Duration of pause between hour and minute
+    -b, --base-duration     Base duration of a blink
+    -l, --long-duty         Duty cycle of the long blink
+    -s, --short-duration    Duty cycle of the short blink
+
+Options:
+    -h, --help              Print this help message
+    -u, --user              User to drop privileges to
+
+"#
+    );
 }
 
 fn args() -> anyhow::Result<Args> {
     let mut args = pico_args::Arguments::from_env();
 
+    if args.contains(["-h", "--help"]) {
+        help();
+        std::process::exit(0);
+    }
+
     let break_duration: u64 = args.value_from_str(["-p", "--pause-duration"])?;
     let base_duration: u64 = args.value_from_str(["-b", "--base-duration"])?;
-    let long_duty = args.value_from_str::<_, f64>(["-l", "--long-duty"])?.clamp(0.001, 1.0);
-    let short_duty = args.value_from_str::<_, f64>(["-s", "--short-duty"])?.clamp(0.001, 1.0);
+    let long_duty = args.value_from_str::<_, DutyCycle>(["-l", "--long-duty"])?;
+    let short_duty = args.value_from_str::<_, DutyCycle>(["-s", "--short-duty"])?;
 
     Ok(Args {
         base_duration,
         break_duration,
-        short_on_duration: (base_duration as f64 * short_duty) as u64,
-        short_off_duration: (base_duration as f64 * (1.0 - short_duty)) as u64,
-        long_on_duration: (base_duration as f64 * long_duty) as u64,
-        long_off_duration: (base_duration as f64 * (1.0 - long_duty)) as u64,
+        short_on_duration: (base_duration as f64 * short_duty.0) as u64,
+        short_off_duration: (base_duration as f64 * (1.0 - short_duty.0)) as u64,
+        long_on_duration: (base_duration as f64 * long_duty.0) as u64,
+        long_off_duration: (base_duration as f64 * (1.0 - long_duty.0)) as u64,
+        user: args
+            .opt_value_from_os_str::<_, _, Infallible>(["-u", "--user"], |u| Ok(u.to_owned()))?,
         path: args.free_from_os_str::<_, Infallible>(|f| Ok(f.to_owned()))?,
     })
 }
 
 fn app() -> anyhow::Result<()> {
-    let args = dbg!(args()?);
+    let args = match args() {
+        Ok(args) => args,
+        Err(e) => {
+            eprintln!("Argument error: {}", e);
+            help();
+            std::process::exit(1);
+        }
+    };
 
     let mut led = SysfsLed::new(&args.path)?;
 

@@ -32,7 +32,7 @@ pub mod parser {
     }
 
     pub fn parse_trigger(input: &str) -> Option<&str> {
-        let pos = input.find("[")?;
+        let pos = input.find('[')?;
         let input = &input[pos..];
 
         let trigger: Result<_, ()> = delimited(tag("["), trigger_char1, tag("]"))(input)
@@ -58,7 +58,9 @@ pub mod parser {
 
         #[test]
         fn find_trigger() {
+            assert_eq!(parse_trigger("some other"), None);
             assert_eq!(parse_trigger("some other [none]"), None);
+            assert_eq!(parse_trigger("some [processor-14x] banana"), Some("processor-14x"));
         }
     }
 }
@@ -176,7 +178,7 @@ impl str::FromStr for DutyCycle {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let value: f64 = s.parse()?;
+        let value = s.parse()?;
 
         if value <= 0.0 || value > 1.0 {
             Err(Error::InvalidDutyCycle)
@@ -227,8 +229,8 @@ fn args() -> anyhow::Result<Args> {
         process::exit(0);
     }
 
-    let break_duration: u64 = args.value_from_str(["-p", "--pause-duration"])?;
-    let base_duration: u64 = args.value_from_str(["-b", "--base-duration"])?;
+    let break_duration = args.value_from_str(["-p", "--pause-duration"])?;
+    let base_duration = args.value_from_str(["-b", "--base-duration"])?;
     let long_duty = args.value_from_str::<_, DutyCycle>(["-l", "--long-duty"])?;
     let short_duty = args.value_from_str::<_, DutyCycle>(["-s", "--short-duty"])?;
 

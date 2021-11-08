@@ -1,13 +1,16 @@
 use chrono::{offset::Local, Timelike};
 use morseclock::{Clock, Format, Symbol};
 use std::convert::Infallible;
+use std::error;
+use std::ffi::OsString;
+use std::fmt;
 use std::fs;
-use std::ffi;
 use std::io::{self, Seek, Write};
 use std::path;
+use std::str;
+use std::sync::{self, atomic};
 use std::thread;
 use std::time::Duration;
-use std::sync::{self, atomic};
 
 pub mod parser {
     use nom::bytes::complete::tag;
@@ -284,10 +287,16 @@ fn app() -> anyhow::Result<()> {
                     thread::sleep(Duration::from_millis(args.base_duration));
                 }
                 Symbol::Short => {
-                    led.blink(Duration::from_millis(args.short_on_duration), Duration::from_millis(args.short_off_duration))?;
+                    led.blink(
+                        Duration::from_millis(args.short_on_duration),
+                        Duration::from_millis(args.short_off_duration),
+                    )?;
                 }
                 Symbol::Long => {
-                    led.blink(Duration::from_millis(args.long_on_duration), Duration::from_millis(args.long_off_duration))?;
+                    led.blink(
+                        Duration::from_millis(args.long_on_duration),
+                        Duration::from_millis(args.long_off_duration),
+                    )?;
                 }
             }
         }

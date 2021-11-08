@@ -6,7 +6,9 @@ use std::ffi::OsString;
 use std::fmt;
 use std::fs;
 use std::io::{self, Seek, Write};
+use std::num;
 use std::path;
+use std::process;
 use std::str;
 use std::sync::{self, atomic};
 use std::thread;
@@ -64,7 +66,7 @@ pub mod parser {
 #[derive(Debug)]
 enum Error {
     InvalidDutyCycle,
-    ParseError(std::num::ParseFloatError),
+    ParseError(num::ParseFloatError),
 }
 
 impl fmt::Display for Error {
@@ -78,8 +80,8 @@ impl fmt::Display for Error {
 
 impl error::Error for Error {}
 
-impl From<std::num::ParseFloatError> for Error {
-    fn from(error: std::num::ParseFloatError) -> Self {
+impl From<num::ParseFloatError> for Error {
+    fn from(error: num::ParseFloatError) -> Self {
         Self::ParseError(error)
     }
 }
@@ -222,7 +224,7 @@ fn args() -> anyhow::Result<Args> {
 
     if args.contains(["-h", "--help"]) {
         help();
-        std::process::exit(0);
+        process::exit(0);
     }
 
     let break_duration: u64 = args.value_from_str(["-p", "--pause-duration"])?;
@@ -249,7 +251,7 @@ fn app() -> anyhow::Result<()> {
         Err(e) => {
             eprintln!("Argument error: {}", e);
             help();
-            std::process::exit(1);
+            process::exit(1);
         }
     };
 
@@ -316,6 +318,6 @@ fn app() -> anyhow::Result<()> {
 fn main() {
     if let Err(e) = app() {
         eprintln!("Error: {}", e);
-        std::process::exit(1);
+        process::exit(1);
     }
 }

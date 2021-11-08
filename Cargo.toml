@@ -20,7 +20,7 @@ path = "src/bin/hwclock.rs"
 [dependencies]
 chrono = "0.4.19"
 nom = "7.1.0"
-ctrlc = "3.2.1"
+ctrlc = { version = "3.2.1", features = ["termination"] }
 anyhow = "1.0.45"
 pico-args = "0.4.2"
 privdrop = "0.5.1"

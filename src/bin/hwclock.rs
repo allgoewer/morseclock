@@ -262,6 +262,19 @@ fn app() -> anyhow::Result<()> {
         privdrop::PrivDrop::default().user(user).apply()?;
     }
 
+    // break up the break duration into smaller chunks of ~ 200 ms to be able to exit ASAP
+    let (break_duration, break_repeats) = if args.break_duration <= 200 {
+        (args.break_duration, 1)
+    } else {
+        let approx_repeats = args.break_duration / 200;
+        let approx_break_duration = args.break_duration / approx_repeats;
+
+        (
+            approx_break_duration,
+            args.break_duration / approx_break_duration,
+        )
+    };
+
     let running = sync::Arc::new(atomic::AtomicBool::new(true));
 
     ctrlc::set_handler({
@@ -303,12 +316,12 @@ fn app() -> anyhow::Result<()> {
             }
         }
 
-        for _ in 0..10 {
+        for _ in 0..break_repeats {
             if !running.load(atomic::Ordering::Relaxed) {
                 break 'outer;
             }
 
-            thread::sleep(Duration::from_millis(500));
+            thread::sleep(Duration::from_millis(break_duration));
         }
     }
 

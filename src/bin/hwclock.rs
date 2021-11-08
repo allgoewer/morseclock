@@ -139,15 +139,6 @@ impl SysfsLed {
         Ok(())
     }
 
-    pub fn blink(&mut self, on_duration: Duration, off_duration: Duration) -> anyhow::Result<()> {
-        self.set(self.max_brightness)?;
-        thread::sleep(on_duration);
-        self.set(0)?;
-        thread::sleep(off_duration);
-
-        Ok(())
-    }
-
     fn write_trigger(file: &mut fs::File, trigger: &str) -> anyhow::Result<()> {
         file.seek(io::SeekFrom::Start(0))?;
         file.write_all(trigger.as_bytes())?;
@@ -247,6 +238,15 @@ fn args() -> anyhow::Result<Args> {
     })
 }
 
+fn blink(led: &mut SysfsLed, on_duration: Duration, off_duration: Duration) -> anyhow::Result<()> {
+    led.set(led.max_brightness)?;
+    thread::sleep(on_duration);
+    led.set(0)?;
+    thread::sleep(off_duration);
+
+    Ok(())
+}
+
 fn app() -> anyhow::Result<()> {
     let args = match args() {
         Ok(args) => args,
@@ -304,13 +304,15 @@ fn app() -> anyhow::Result<()> {
                     thread::sleep(Duration::from_millis(args.base_duration));
                 }
                 Symbol::Short => {
-                    led.blink(
+                    blink(
+                        &mut led,
                         Duration::from_millis(args.short_on_duration),
                         Duration::from_millis(args.short_off_duration),
                     )?;
                 }
                 Symbol::Long => {
-                    led.blink(
+                    blink(
+                        &mut led,
                         Duration::from_millis(args.long_on_duration),
                         Duration::from_millis(args.long_off_duration),
                     )?;

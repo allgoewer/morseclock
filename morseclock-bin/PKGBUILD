@@ -1,0 +1,33 @@
+# Maintainer: Maik Allgöwer <maik@llgoewer.de>
+pkgname=morseclock
+pkgver=0.2.0
+pkgrel=0
+pkgdesc="Yet another not-so-intuitive clock"
+arch=('x86_64')
+url="https://github.com/allgoewer/morseclock"
+license=('GPL-3.0-or-later')
+makedepends=('rust')
+source=("$pkgname-$pkgver.tar.gz::https://github.com/allgoewer/$pkgname/archive/$pkgver.tar.gz")
+sha512sums=("dc1756731c0433ac2bf10a80790cf0e8bc9d950edca447e909dfe9123e975e0337151fc6cb1e0ca69776f119b157fc3a13705ab61016c721cfceb76829a3d180")
+
+build() {
+  cd "$pkgname-$pkgver"
+
+  cargo build --release --bin morseclock-hw
+}
+
+check() {
+  cd "$pkgname-$pkgver"
+
+  cargo test --release
+}
+
+package() {
+  cd "$pkgname-$pkgver"
+
+  install -Dm644 "morseclock-bin/morseclock.service" "$pkgdir/usr/lib/systemd/system/morseclock.service"
+  install -Dm644 "morseclock-bin/morseclock.env" "$pkgdir/etc/morseclock.env"
+  install -Dm644 "morseclock-bin/LICENSE" "$pkgdir/usr/share/licenses/${pkgname}/LICENSE"
+  install -Dm755 "target/release/morseclock-hw" "$pkgdir/usr/bin/morseclock-hw"
+}
+
